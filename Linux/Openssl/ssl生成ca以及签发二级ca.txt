@@ -1,0 +1,124 @@
+生成RSA私钥(使用aes256加密)
+openssl genrsa -aes256 -out root_private.key 2048
+
+生成公钥
+openssl rsa -in root_private.key -pubout -out root_public.key
+
+生成自签名证书请求csr
+openssl req -new -key root_private.key -out root.csr
+
+使用csr生成证书
+openssl x509 -req -days 365 -in root.csr -signkey root_private.key -out root.crt
+
+对 CA 证书请求进行自签名
+openssl ca -selfsign -in root.csr -out root.pem
+
+无csr直接生成证书
+openssl req -new -x509 -days 365 -key root_private.key -out root.crt
+
+直接生成私钥和自签名证书
+openssl req -newkey rsa:2048 -nodes -keyout rsa_private.key -x509 -days 365 -out root.crt
+
+
+
+
+
+根ca生成
+openssl req -new -config root-ca.conf -out root-ca.csr -keyout private/root-ca.key
+创建自签名证书
+openssl ca -selfsign \ -config root- ca. conf \ -in root- ca. csr \ -out root- ca. crt \ -extensions ca_ ext
+
+
+
+
+
+1 搭建CA
+1.1 环境的搭建
+首先创建CA目录，所有与CA相关的内容都包含在这个文件夹中。然后在这个目录下再建立2个文件夹newcerts和private，分别用于存放CA发布的证书和CA的私钥。另外还需要创建3个文件，第一个文件用来追踪已经发布的证书的序列号，因为每个证书的序列号都必须唯一。这个文件叫做serial，它的初始值为1. 这个数值是16进制，并且最少为2位。第二个文件的初始值为空，名字为index.txt。它是个数据库，保存CA发布的证书的信息，每一行对应一个证书。
+mdkir ~/democa
+cd ~/democa
+mkdir newcerts private
+echo '01' > serial
+touch index.txt
+
+1.2 OpenSSL配置文件
+使用命令openssl ca可以查看默认配置文件的位置，把它拷贝到demoCA目录。然后对它进行修改
+（1）dir=. #把工作目录指向当前目录
+1.3 创建CA根证书
+通常需要3步来建立一个CA证书：CA私钥；CA证书签名请求（CSR）；CA证书
+1.3.1 CA私钥
+openssl genrsa -aes256 -out cakey.pem 2048
+生成一个RSA秘钥，长度为2048位。
+1.3.2 CSR
+openssl req -utf8 -new -key cakey.pem -out cacsr.pem
+你会被要求输入很多参数，这些参数就是申请者的身份信息，你可以全部按空格（使用默认值）,但是必须输入Common Name。同时CSR需要包含申请者的公钥，所以-key指定公钥文件。
+此命令用来查看刚刚生成的CSR
+openssl req -text -in cacsr.pem 
+1.3.3 CA证书
+openssl ca -config ./openssl.cnf -keyfile cakey.pem -in cacsr.pem -selfsign -out cacert.pem
+
+
+2 用CA签发证书
+2.1 制作client私钥
+openssl genrsa -out clientkey.pem 2048
+2,2 CSR
+openssl req -utf8 -new -key clientkey.pem -out clientcsr.pem
+2.3 用CA签发client证书
+openssl ca -config ./openssl.cnf -keyfile cakey.pem -cert cacert.pem -in clientcsr.pem -out clientcrt.pem
+2.4 生成p12证书
+openssl pkcs12 -export -in clientcrt.pem -inkey clientkey.pem -certfile cacert.pem -out client.p12
+
+
+3 二级CA证书
+3.1 二级CA私钥和CSR
+openssl req -utf8 -newkey rsa:2048 -keyout secondkey.pem -out secondcsr.pem
+3.2 用根CA签发二级CA证书
+openssl ca -config ./openssl.cnf -keyfile cakey.pem -cert cacert.pem -in secondcsr.pem -out secondcert.pem
+
+4 用二级CA签发server证书
+4.1 server私钥和CSR
+openssl req -utf8 -newkey rsa:2048 -keyout serverkey.pem -out servercsr.pem
+4.2 用二级CA签发server证书
+openssl ca -config ./openssl.cnf -keyfile secondkey.pem -cert secondcert.pem -in servercsr.pem -out servercert.pem
+
+
+使用java keytool生成证书
+
+
+1、keystore的生成：
+
+分阶段生成：
+keytool -genkey -alias yushan(别名) -keypass yushan(别名密码) -keyalg RSA(算法) -keysize 1024(密钥长度) -validity 365(有效期，天单位) -keystore
+e:\yushan.keystore(指定生成证书的位置和证书名称) -storepass 123456(获取keystore信息的密码)；
+
+回车输入相关信息即可；
+
+一次性生成：
+keytool -genkey -alias yushan -keypass yushan -keyalg RSA -keysize 1024 -validity 365 -keystore e:\yushan.keystore -storepass 123456 -dname "CN=(名字与
+姓氏), OU=(组织单位名称), O=(组织名称), L=(城市或区域名称), ST=(州或省份名称), C=(单位的两字母国家代码)";
+
+(中英文即可)
+
+2、keystore信息的查看：
+keytool -list -v -keystore e:\keytool\yushan.keystore -storepass 123456
+
+
+
+
+
+
+-------生成服务端keystore
+keytool -genkey -v -alias tomcatserver -keyalg RSA -validity 36500 -keystore C:\tomcat4.keystore -dname "CN=localhost,OU=hikvision,O=hikvision,L=hikvision,ST=hikvision,c=CN" -storepass 123456 -keypass 123456
+
+-----生成客户端 p12 证书
+keytool -genkey -keyalg RSA -dname "cn=admin 123456,ou=hikvision,o=hikvision,l=china,st=hangzhou,c=cn" -alias  clientp12 -storetype PKCS12 -keypass 123456 -keystore D:\Library\apache-tomcat-8.0.48\keystore\client.p12 -storepass 123456 -validity 36500
+
+-----------生成客户端cer 证书
+keytool -export -alias clientp12 -keystore D:\Library\apache-tomcat-8.0.48\keystore\client.p12 -storetype PKCS12 -storepass 123456 -rfc -file D:\Library\apache-tomcat-8.0.48\keystore\client.cer
+
+----将证书导入keystore
+keytool -import -v -alias client -file C:\cacert.cer -keystore C:\tomcat4.keystore -storepass 123456
+
+提示是否信任该证书，   输入 是  
+
+双击步骤2 生成的p12 证书 ，输入密码 123456 导入证书， 重启浏览器

@@ -1,0 +1,19 @@
+-------生成服务端keystore
+keytool -genkey -v -alias tomcatserver -keyalg RSA -validity 36500 -keystore C:\tomcat4.keystore -dname "CN=localhost,OU=hikvision,O=hikvision,L=hikvision,ST=hikvision,c=CN" -storepass 88075998 -keypass 88075998
+
+-----生成客户端 p12 证书
+keytool -genkey -keyalg RSA -dname "cn=admin 123456,ou=hikvision,o=hikvision,l=china,st=hangzhou,c=cn" -alias  clientp12 -storetype PKCS12 -keypass 88075998 -keystore D:\Library\apache-tomcat-8.0.48\keystore\client.p12 -storepass 88075998 -validity 36500
+
+-----------生成客户端cer 证书
+keytool -export -alias clientp12 -keystore D:\Library\apache-tomcat-8.0.48\keystore\client.p12 -storetype PKCS12 -storepass 88075998 -rfc -file D:\Library\apache-tomcat-8.0.48\keystore\client.cer
+
+----将证书导入keystore
+keytool -import -v -alias client -file C:\cacert.cer -keystore C:\tomcat4.keystore -storepass 88075998
+
+提示是否信任该证书，   输入 是  
+
+双击步骤2 生成的p12 证书 ，输入密码 88075998 导入证书， 重启浏览器
+
+
+
+
